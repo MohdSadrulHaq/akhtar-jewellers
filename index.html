@@ -78,6 +78,21 @@ textarea{font:400 1rem Manrope,sans-serif;padding:12px;border:1px solid var(--li
 .btn:active{transform:scale(.93)}
 .js .reveal{opacity:0;transform:translateY(30px) scale(.97);transition:opacity .6s ease,transform .7s cubic-bezier(.2,.9,.3,1.2);transition-delay:var(--d,0s)}
 .js .reveal.in{opacity:1;transform:none}
+.item[data-cat]{cursor:pointer}
+.more{display:inline-block;margin-top:6px;color:var(--gold);font-weight:700;font-size:.9rem}
+#gal{position:fixed;inset:0;z-index:50;background:var(--bg);overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,0px)}
+#gal[hidden],#lb[hidden]{display:none}
+.gal-bar{position:sticky;top:0;z-index:1;display:flex;justify-content:space-between;align-items:center;padding:calc(14px + env(safe-area-inset-top,0px)) 22px 14px;background:var(--bg);border-bottom:1px solid var(--line)}
+.gal-bar h3{font-size:1.5rem}
+.xbtn{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:1.2rem;cursor:pointer}
+.gal-grid{display:grid;gap:12px;padding:20px 22px 40px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));max-width:1040px;margin:0 auto}
+.gal-grid img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:3px;cursor:pointer;background:var(--card);display:block}
+.gal-empty{grid-column:1/-1;color:var(--mute)}
+#lb{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.93);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px}
+#lb img{max-width:100%;max-height:72vh;object-fit:contain;border-radius:3px}
+#lb .xbtn{position:absolute;background:rgba(255,255,255,.14);color:#fff;border:0}
+#lb-x{top:calc(12px + env(safe-area-inset-top,0px));right:12px}
+#lb-p{left:10px;top:50%}#lb-n{right:10px;top:50%}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.w{opacity:1;transform:none}.js .reveal{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>
@@ -102,12 +117,12 @@ textarea{font:400 1rem Manrope,sans-serif;padding:12px;border:1px solid var(--li
 <main class="wrap">
 <section id="collections">
 <h2>Collections</h2>
-<p class="sub">A few of what we make and stock. Ask in store for custom designs.</p>
+<p class="sub">Tap a collection to see all designs. Ask in store for custom designs.</p>
 <div class="grid">
-<div class="item"><div class="img" data-slot="necklaces">Photo</div><h3>Necklaces</h3><p>22k and 18k chains and sets</p></div>
-<div class="item"><div class="img" data-slot="rings">Photo</div><h3>Rings</h3><p>Engagement, wedding, everyday</p></div>
-<div class="item"><div class="img" data-slot="bangles">Photo</div><h3>Bangles</h3><p>Plain, carved, and stone-set</p></div>
-<div class="item"><div class="img" data-slot="earrings">Photo</div><h3>Earrings</h3><p>Studs, drops, and jhumkas</p></div>
+<div class="item" data-cat="necklaces" role="button" tabindex="0"><div class="img" data-slot="necklaces">Photo</div><h3>Necklaces</h3><p>22k and 18k chains and sets</p><span class="more">View all photos →</span></div>
+<div class="item" data-cat="rings" role="button" tabindex="0"><div class="img" data-slot="rings">Photo</div><h3>Rings</h3><p>Engagement, wedding, everyday</p><span class="more">View all photos →</span></div>
+<div class="item" data-cat="bangles" role="button" tabindex="0"><div class="img" data-slot="bangles">Photo</div><h3>Bangles</h3><p>Plain, carved, and stone-set</p><span class="more">View all photos →</span></div>
+<div class="item" data-cat="earrings" role="button" tabindex="0"><div class="img" data-slot="earrings">Photo</div><h3>Earrings</h3><p>Studs, drops, and jhumkas</p><span class="more">View all photos →</span></div>
 </div>
 </section>
 
@@ -157,6 +172,8 @@ textarea{font:400 1rem Manrope,sans-serif;padding:12px;border:1px solid var(--li
 </div>
 <footer class="wrap">© <span id="yr">2026</span> AKHTAR BHAI &amp; SONS JEWELLERS</footer>
 
+<div id="gal" hidden role="dialog" aria-modal="true" aria-label="Photo collection"><div class="gal-bar"><h3 id="gal-title"></h3><button class="xbtn" id="gal-x" aria-label="Close">✕</button></div><div class="gal-grid" id="gal-grid"></div></div>
+<div id="lb" hidden role="dialog" aria-modal="true" aria-label="Photo"><button class="xbtn" id="lb-x" aria-label="Close">✕</button><button class="xbtn" id="lb-p" aria-label="Previous">‹</button><img id="lb-img" alt=""><button class="xbtn" id="lb-n" aria-label="Next">›</button><a class="btn" id="lb-wa" target="_blank" rel="noopener">Ask about this design on WhatsApp</a></div>
 <script>
 document.getElementById('yr').textContent = new Date().getFullYear();
 const $ = id => document.getElementById(id);
@@ -236,6 +253,73 @@ function openAdmin(artifact){
     if(user && artifact && user.isOwner()) openAdmin(artifact);
   } catch(e){}
 })();
+
+const OWNER='MohdSadrulHaq', REPO='akhtar-jewellers', CATS=['hero','necklaces','rings','bangles','earrings'];
+const IMGX=/\.(jpe?g|png|webp|gif|avif)$/i, photos={};
+CATS.forEach(c=>photos[c]=[]);
+const src=p=>encodeURI(p);
+function group(paths){
+  CATS.forEach(c=>photos[c]=[]);
+  paths.forEach(p=>{const m=p.match(/^([^/]+)\/[^/]+$/); const k=m&&m[1].toLowerCase(); if(k&&photos[k]&&IMGX.test(p)) photos[k].push(p);});
+  CATS.forEach(c=>photos[c].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})));
+}
+function covers(){
+  document.querySelectorAll('.img[data-slot]').forEach(el=>{
+    const l=photos[el.dataset.slot]; if(!l||!l.length) return;
+    const im=new Image(); im.alt=el.dataset.slot;
+    im.onload=()=>{el.textContent=''; el.appendChild(im);};
+    im.src=src(l[0]);
+  });
+}
+async function loadPhotos(){
+  let paths=null;
+  try{const c=JSON.parse(localStorage.getItem('akj-tree')||'null'); if(c&&Date.now()-c.t<600000) paths=c.p;}catch(e){}
+  if(!paths){
+    try{
+      const r=await fetch('https://api.github.com/repos/'+OWNER+'/'+REPO+'/git/trees/main?recursive=1');
+      if(!r.ok) throw 0;
+      const j=await r.json();
+      paths=j.tree.filter(x=>x.type==='blob').map(x=>x.path);
+      try{localStorage.setItem('akj-tree',JSON.stringify({t:Date.now(),p:paths}));}catch(e){}
+    }catch(e){ paths=[]; }
+  }
+  group(paths); covers();
+}
+loadPhotos();
+
+let cur=[], idx=0;
+function openGal(cat,title){
+  cur=photos[cat]||[];
+  $('gal-title').textContent = title + (cur.length ? ' (' + cur.length + ')' : '');
+  const g=$('gal-grid'); g.innerHTML='';
+  if(!cur.length){ const p=document.createElement('p'); p.className='gal-empty'; p.textContent='Photos coming soon. Please visit the shop or message us on WhatsApp.'; g.appendChild(p); }
+  cur.forEach((p,i)=>{const im=new Image(); im.src=src(p); im.alt=title+' '+(i+1); im.loading='lazy'; im.addEventListener('click',()=>openLb(i)); g.appendChild(im);});
+  $('gal').hidden=false; $('gal').scrollTop=0; document.body.style.overflow='hidden';
+}
+function closeGal(){ $('gal').hidden=true; document.body.style.overflow=''; }
+function openLb(i){
+  idx=(i+cur.length)%cur.length;
+  const u=src(cur[idx]);
+  $('lb-img').src=u;
+  $('lb-wa').href='https://wa.me/919177777215?text='+encodeURIComponent('Hello, I am interested in this design: '+new URL(u,location.href).href);
+  $('lb').hidden=false;
+}
+document.querySelectorAll('.item[data-cat]').forEach(it=>{
+  const go=()=>openGal(it.dataset.cat, it.querySelector('h3').textContent);
+  it.addEventListener('click',go);
+  it.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});
+});
+$('gal-x').addEventListener('click',closeGal);
+$('lb-x').addEventListener('click',()=>{$('lb').hidden=true;});
+$('lb-p').addEventListener('click',()=>openLb(idx-1));
+$('lb-n').addEventListener('click',()=>openLb(idx+1));
+let tx=null;
+$('lb').addEventListener('touchstart',e=>{tx=e.touches[0].clientX;},{passive:true});
+$('lb').addEventListener('touchend',e=>{if(tx===null)return; const d=e.changedTouches[0].clientX-tx; tx=null; if(Math.abs(d)>50) openLb(idx+(d<0?1:-1));});
+document.addEventListener('keydown',e=>{
+  if(!$('lb').hidden){ if(e.key==='Escape')$('lb').hidden=true; if(e.key==='ArrowLeft')openLb(idx-1); if(e.key==='ArrowRight')openLb(idx+1); }
+  else if(!$('gal').hidden && e.key==='Escape') closeGal();
+});
 </script>
 
 
